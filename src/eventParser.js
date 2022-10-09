@@ -33,7 +33,8 @@ function parseFieldBitmaps(allFields, fieldBitmapsAsHex) {
         return [];
     }
     let fieldNames = [];
-    // Replace top field level bitmap with list of fields
+    console.log('fieldBitmapsAsHex: ', typeof fieldBitmapsAsHex[0])
+        // Replace top field level bitmap with list of fields
     if (fieldBitmapsAsHex[0].startsWith('0x')) {
         fieldNames = fieldNames.concat(
             getFieldNamesFromBitmap(allFields, fieldBitmapsAsHex[0])
@@ -81,6 +82,7 @@ function getChildFields(parentField) {
  * @param {string} fieldBitmapAsHex
  */
 function getFieldNamesFromBitmap(fields, fieldBitmapAsHex) {
+    console.log('fieldBitmapAsHex typeof:', typeof fieldBitmapAsHex)
     let binValue = hexToBin(fieldBitmapAsHex);
     binValue = reverseBytes(binValue); // Reverse byte order to match expected format
     // Use bitmap to figure out field names based on index
@@ -107,6 +109,7 @@ function reverseBytes(input) {
  * @returns
  */
 function hexToBin(hex) {
+    console.log('binary:', hex)
     let bin = hex.substring(2); // Remove 0x prefix
     bin = bin.replaceAll('0', '0000');
     bin = bin.replaceAll('1', '0001');

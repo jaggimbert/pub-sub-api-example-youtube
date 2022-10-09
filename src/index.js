@@ -19,7 +19,8 @@ const {
     PUB_SUB_ENDPOINT,
     PUB_SUB_PROTO_FILE,
     PUB_SUB_TOPIC_NAME,
-    PUB_SUB_EVENT_RECEIVE_LIMIT
+    PUB_SUB_EVENT_RECEIVE_LIMIT,
+    PUBLISH_TOPIC_NAME
 } = process.env;
 
 /**
@@ -117,7 +118,7 @@ async function getEventSchema(client, topicName) {
  * @param {string} schema.id
  * @param {Object} schema.type
  */
-function subscribe(client, topicName, schema) {
+function subscribe(client, topicName, schema, publishSchema, sfConnection) {
     const subscription = client.Subscribe(); //client here is the grpc client.
     //Since this is a stream, you can call the write method multiple times.
     //Only the required data is being passed here, the topic name & the numReqested
@@ -145,6 +146,13 @@ function subscribe(client, topicName, schema) {
                 'gRPC event payloads: ',
                 JSON.stringify(parsedEvents, null, 2)
             );
+            console.log('Publishing event back to SF ')
+            const msg = {
+                CreatedDate: Date.now(),
+                CreatedById: sfConnection.userInfo.id,
+                Message__c: { string: 'Change data capture event received at: ' + new Date().toLocaleString() }
+            }
+            publish(client, PUBLISH_TOPIC_NAME, publishSchema, msg)
         } else {
             // If there are no events then every 270 seconds the system will keep publishing the latestReplayId.
         }
@@ -173,16 +181,13 @@ function subscribe(client, topicName, schema) {
 /* eslint-disable no-unused-vars */
 async function publish(client, topicName, schema, payload) {
     return new Promise((resolve, reject) => {
-        client.Publish(
-            {
+        client.Publish({
                 topicName,
-                events: [
-                    {
-                        id: '124', // this can be any string
-                        schemaId: schema.id,
-                        payload: schema.type.toBuffer(payload)
-                    }
-                ]
+                events: [{
+                    id: '124', // this can be any string
+                    schemaId: schema.id,
+                    payload: schema.type.toBuffer(payload)
+                }]
             },
             (err, response) => {
                 if (err) {
@@ -200,7 +205,8 @@ async function run() {
         const sfConnection = await connectToSalesforce();
         const client = connectToPubSubApi(sfConnection);
         const topicSchema = await getEventSchema(client, PUB_SUB_TOPIC_NAME);
-        subscribe(client, PUB_SUB_TOPIC_NAME, topicSchema);
+        const publishSchema = await getEventSchema(client, PUBLISH_TOPIC_NAME);
+        subscribe(client, PUB_SUB_TOPIC_NAME, topicSchema, publishSchema, sfConnection);
     } catch (err) {
         console.error('Fatal error: ', err);
     }
